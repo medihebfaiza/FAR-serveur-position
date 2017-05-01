@@ -29,11 +29,11 @@ int main(void) {
   recv(sock, buffer, 32, 0);
   printf("Connexion a %s sur le port %d\n", inet_ntoa(sin.sin_addr),
          htons(sin.sin_port));
-  printf("le serveur a dit %s \n",buffer) ;
-  while(1){
+  printf("le serveur a dit : %s \n",buffer) ;
+
+  while(1) {
 	  char buffer2[32] = "" ;
 	  fgets(buffer2, sizeof buffer2, stdin);
-          printf("%s\n",buffer2);
 	  send(sock, buffer2, 32, 0);
   }
   /* Fermeture de la socket client */

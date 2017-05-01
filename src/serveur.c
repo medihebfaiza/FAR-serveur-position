@@ -1,6 +1,6 @@
 // serveur.c
 // serveur tcp basique
-// Prob : on écrase la socket à chaque tour de boucle
+// Prob : le processus père rentre dans une boucle infinie et donc un deuxième client ne peut pas se connecter
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -9,10 +9,10 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #define PORT 10000
 
 int main(void) {
-
 
   /* Socket et contexte d'adressage du serveur */
   struct sockaddr_in sin;
@@ -50,31 +50,61 @@ int main(void) {
 	  pid_t pid ;
     pipe(descr);
 	  pid = fork() ;
+
+    /* Processus fils */
 	  if (pid == 0) {
 		  printf("Un client se connecte avec la socket %d de %s:%d\n",
-			 csock, inet_ntoa(csin.sin_addr), htons(csin.sin_port));
+			     csock, inet_ntoa(csin.sin_addr), htons(csin.sin_port));
       /* envoi du csock au processus père */
       close(descr[0]);
       write(descr[1],&csock,sizeof(int));
 
       /* envoi du premier message au client */
-		  send(csock, buffer, 32, 0);
-		  printf("%s\n",buffer) ;
-  		  while(1){ //on recoit plusieurs messages
-			  char buffer2[32] = "" ;
-			  recv(csock, buffer2, 32, 0);
-			  printf("Le client %d a dit %s \n", csock, buffer2) ;
-		  }
-		  /* Fermeture de la socket client et de la socket serveur */
-		  close(csock);
-	  }
+      send(csock, buffer, 32, 0);
+      printf("j'ai dit au client %d : %s \n",csock,buffer) ;
+      char messageCient[32] = "" ;
+      while(recv(csock, messageCient, 32, 0) > 0){ //on recoit plusieurs messages
+        printf("Le client %d a dit : %s", csock, messageCient) ;
+      }
+      /* Fermeture de la socket client et de la socket serveur */
+      close(csock);
+
+      /* dire au père que le client s'est déconnecté*/
+      close(descr[0]);
+      write(descr[1],&csock,sizeof(int));
+    }
+
+    /* Processus père */
     else {
-      close(descr[1]);
-      read(descr[0], &csock, sizeof(int)) ;
-      printf("ajout du client %d \n", csock);
-      clients[nbclients] = csock ;
-      nbclients++ ;
-      printf("nb clients = %d \n", nbclients);
+      while(1) {
+      	close(descr[1]);
+      	read(descr[0], &csock, sizeof(int)) ;
+
+	      bool exist = false ;
+	      int i = 0 ;
+	      int pos = -1 ;
+	      while (i<nbclients && !exist){
+		      if (clients[i]==csock){
+			    exist = true ;
+          pos = i ;
+          }
+		      i++ ;
+	      }
+        if (exist){//enlever le client du tableau en le décalant
+          printf("client %d  s'est déconnecté \n", clients[pos]);
+          for (i=pos ; i<nbclients-1 ; i++){
+            clients[i] = clients[i+1] ;
+          }
+          nbclients -- ;
+          printf("nb clients = %d \n", nbclients);
+        }
+        else {
+          printf("ajout du client %d \n", csock);
+          clients[nbclients] = csock ;
+      		nbclients++ ;
+      		printf("nb clients = %d \n", nbclients);
+        }
+      }
     }
   }
   close(sock);
