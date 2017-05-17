@@ -31,10 +31,19 @@ void connectToRobots(char** adressesRobots, int num){
       recv(sock, buffer, 32, 0);
       fprintf(stderr,"Connexion a %s sur le port %d\n", inet_ntoa(sin.sin_addr),
          htons(sin.sin_port));
-      printf("le serveur a dit : %s \n",buffer) ;
+      //printf("le serveur a dit : %s \n",buffer) ;
 }
 
+
+void passerToken(){
+
+}
+
+
 int main(int argc,  char *argv[ ]) {
+  if (init()==-1){
+    exit(1);
+  }
    pid_t childpid;             /* indicates process should spawn another     */
    int error;                  /* return value from dup2 call                */
    int fd[2];                  /* file descriptors returned by pipe          */
@@ -44,6 +53,7 @@ int main(int argc,  char *argv[ ]) {
    int num=0;
    char adresse[16] = "" ;
    long ppid;
+   char token[10];
 
    for (i=0;i<6;i++){
     adressesRobots[i] = (char*) malloc(16*sizeof(char)) ;
@@ -111,5 +121,31 @@ int main(int argc,  char *argv[ ]) {
    fprintf(stderr, "This is process %d with ID %ld and parent id %ld\n",
            num, (long)getpid(), ppid);
    
+   sleep(2) ;
+
+   if(num==0){
+
+    fprintf(stderr,"Proc %d mon tour",num);
+    sprintf(token,"abcde");
+    sleep(2) ;
+    close(STDIN_FILENO) ;//fermer le pipe  
+    write(STDOUT_FILENO,token,10*sizeof(char)+1);
+    //sprintf(token," ");
+   }
+
+   while(true){
+    close(STDOUT_FILENO) ;
+    //sprintf(token," ");
+    char copietoken[10] ;
+    read(STDIN_FILENO,copietoken,10*sizeof(char)) ;
+    if(strcmp(token,copietoken)== 0){
+      fprintf(stderr,"Proc %d mon tour, token : %s\n",num,token);
+      sleep(2) ;
+      close(STDIN_FILENO);
+      write(STDOUT_FILENO,token,10*sizeof(char));
+    }
+    //else fprintf(stderr,"Proc %d je n'ai pas le token, mon token: %s\n",num,copietoken);
+   }
+
    return 0;
 }
