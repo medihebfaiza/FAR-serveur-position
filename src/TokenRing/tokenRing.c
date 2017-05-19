@@ -12,6 +12,7 @@
 #include <time.h>
 #define PORT 10000
 
+//Positions à envoyer
 int* posX ;
 int* posY ;
 
@@ -24,7 +25,7 @@ void setY(int y) {
 }
 
 void connectToRobots(char** adressesRobots, int num){
-  
+
    int sock;
    struct sockaddr_in sin;
    char buffer[32] = "";
@@ -32,7 +33,7 @@ void connectToRobots(char** adressesRobots, int num){
    /* Creation de la socket */
    sock = socket(AF_INET, SOCK_STREAM, 0);
 
-  fprintf(stderr,"socket configured\n");//TEST   
+  fprintf(stderr,"socket configured\n");//TEST
 
        /* Configuration de la connexion */
       sin.sin_addr.s_addr = inet_addr(adressesRobots[num]);
@@ -64,9 +65,9 @@ void flush_buffer(char* x)
 int main(int argc,  char *argv[ ]) {
    pid_t childpid;             /* indicates process should spawn another     */
    int error;                  /* return value from dup2 call                */
-   int fd[2];                  /* file descriptors returned by pipe          */
-   int i = 0 ;                      /* number of this process (starting with 0)   */
-   int nprocs= 6;                 /* total number of processes in ring          */
+   int fd[2];                  /* file descriptors                           */
+   int i = 0 ;
+   int nprocs= 6;                 /* nombre total de process dans le ring    */
    char** adressesRobots = (char**) malloc(6*sizeof(char*));
    int num=0;
    char adresse[16] = "" ;
@@ -106,7 +107,7 @@ int main(int argc,  char *argv[ ]) {
 
    //char buffer[32] = "";
 
-   for (i = 0; i < nprocs-1; i++) {        /* create the remaining processes */
+   for (i = 0; i < nprocs-1; i++) {        /* création des process */
 
 
 
@@ -120,7 +121,7 @@ int main(int argc,  char *argv[ ]) {
                  (long)getpid(), i, strerror(errno));
          return 1;
       }
-     
+
       if (childpid > 0)               /* for parent process, reassign stdout */
           error = dup2(fd[1], STDOUT_FILENO);
       else {                              /* for child process, reassign stdin */
@@ -142,19 +143,19 @@ int main(int argc,  char *argv[ ]) {
         break ;
       }
 
-   }      
+   }
 
-   connectToRobots(adressesRobots,num);                                         /* say hello to the world */
+   connectToRobots(adressesRobots,num);                                         /* connecting process to robots */
    fprintf(stderr, "This is process %d with ID %ld and parent id %ld\n",
            num, (long)getpid(), ppid);
-   
+
    sleep(2) ;
 
    if(num==0){
 
     fprintf(stderr,"Proc %d je crée le token \n",num);
     sprintf(token,"abcde");
-    //close(STDIN_FILENO) ;//fermer le pipe  
+    //close(STDIN_FILENO) ;//fermer le pipe
     write(STDOUT_FILENO,token,10*sizeof(char)+1);
     //sprintf(token," ");
    }
@@ -166,11 +167,11 @@ int main(int argc,  char *argv[ ]) {
     read(STDIN_FILENO,copietoken,10*sizeof(char)) ;
     if(strcmp("abcde",copietoken)== 0){
       fprintf(stderr,"\nProc %d mon tour, token : %s\n",num,copietoken);
-      
-      //fork 
-      pid_t pidSaisie = fork() ; 
-      
-      if (pidSaisie == 0) {//proc fils 
+
+      //fork
+      pid_t pidSaisie = fork() ;
+
+      if (pidSaisie == 0) {//proc fils
         char* x = (char*) malloc(sizeof(char)*10);
         char* y = (char*) malloc(sizeof(char)*10); ;
         dup2(keyboard,STDIN_FILENO) ;
@@ -183,12 +184,17 @@ int main(int argc,  char *argv[ ]) {
         //purge du flux stdin
         //fflush(stdin) ;
         flush_buffer(x);
-    
-        
+
+
 
         fprintf(stderr,"Y = ") ;
         fgets(y,10*sizeof(char),stdin) ;
-/*
+
+
+
+		//---Envoyer les coordonnées saisies dans un fichier--
+        remove("X");
+        remove("Y");
         FILE * xfile = fopen( "./X", "w");
         FILE * yfile = fopen( "./Y", "w");
         fputs(x,xfile) ;
@@ -198,7 +204,7 @@ int main(int argc,  char *argv[ ]) {
         //purge du flux stdin
         //fflush(stdin) ;
         flush_buffer(y);
-    */    
+
 
         /*posX = atoi(x) ;
         posY = atoi(y) ;
@@ -208,43 +214,48 @@ int main(int argc,  char *argv[ ]) {
         free(y) ;
         fprintf(stderr,"Nouveau X : %d \n", posX);
         fprintf(stderr,"Nouveau Y : %d \n", posY);*/
+
+
       }
 
-      if (pidSaisie != 0) { // proc père attend les coordonnées de son fils
+      if (pidSaisie != 0) {
         //attendre la reponse du fils :
         unsigned int retTime = time(0) + 10;
         char bufferx[10] = "" ;
         char buffery[10] = "" ;
-        while ((strlen(bufferx) == 0 || strlen(buffery) == 0) && time(0) < retTime){ //&& le fils n'a pas repondu
-          /*FILE * xfile = fopen( "./X", "r");
-          FILE * yfile = fopen( "./Y", "r"); 
+        while ((strlen(bufferx) == 0 || strlen(buffery) == 0) && time(0) < retTime){ //tant que le buffer est vide (le fichier est vide) et que le temps n'est pas écoulé
+          FILE * xfile = fopen( "./X", "r");
+          FILE * yfile = fopen( "./Y", "r");
           if (xfile && yfile) {
             fgets(bufferx,10,xfile) ;
             fgets(buffery,10,yfile) ;
             fclose(xfile) ;
-            fclose(yfile) ;  
-          } */
-        } 
+            fclose(yfile) ;
+          }
+
+        }
+
+    	//Affichage des positions
+
         fprintf(stderr,"Nouveau X : %s \n", bufferx);
         fprintf(stderr,"Nouveau Y : %s \n", buffery);
-        //tuer le fils 
+        remove("X");
+        remove("Y");
+
+        //tuer le fils
         kill(pidSaisie, SIGTERM) ;
-        //reinitialiser les vars globaux 
-        /*setX(-1) ; 
+
+        //reinitialiser les vars globaux
+        /*setX(-1) ;
         setY(-1) ;
-        */ 
+        */
         //sleep(2) ;
       //close(STDIN_FILENO);
-      write(STDOUT_FILENO,copietoken,10*sizeof(char));
+
+      write(STDOUT_FILENO,copietoken,10*sizeof(char)); //passage du token
       sprintf(copietoken," ");
       }
-      
-      
-
-
-      
     }
-    //else fprintf(stderr,"Proc %d je n'ai pas le token, mon token: %s\n",num,copietoken);
    }
 
    return 0;
