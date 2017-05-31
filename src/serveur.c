@@ -46,17 +46,13 @@ int main(void) {
 
   printf("client connected with socket %d \n",csock );
 
-  while( X==-1 || Y==-1){ //on recoit plusieurs messages
-    if (X==-1){
+  while( 1 ){ //on recoit plusieurs messages
       recv(csock, sX, 4, 0) ;
       X = atoi(sX);
-      printf("J'ai recu sX = %s, apres convertion X = %d \n", sX, X);
-    }
-    else {
+      //printf("J'ai recu sX = %s, apres convertion X = %d \n", sX, X);
       recv(csock, sY, 4, 0) ;
       Y = atoi(sY);
-      printf("J'ai recu sY = %s, apres convertion Y = %d \n", sY, Y);
-    }
+    //  printf("J'ai recu sY = %s, apres convertion Y = %d \n", sY, Y);
   }
 
   /* Fermeture de la socket client et de la socket serveur */
