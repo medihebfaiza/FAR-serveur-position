@@ -24,33 +24,25 @@ void setY(int y) {
   *posY = y ;
 }
 
-void connectToRobots(char** adressesRobots, int num){
+void connectToRobots(char** adressesRobots, int num, int* sock){
+  struct sockaddr_in sin;
 
-   int sock;
-   struct sockaddr_in sin;
-   char buffer[32] = "";
+  /* Creation de la socket */
+  *sock = socket(AF_INET, SOCK_STREAM, 0);
 
-   /* Creation de la socket */
-   sock = socket(AF_INET, SOCK_STREAM, 0);
+  /* Configuration de la connexion */
+  sin.sin_addr.s_addr = inet_addr(adressesRobots[num]);
+  sin.sin_family = AF_INET;
+  sin.sin_port = htons(PORT);
 
-  fprintf(stderr,"socket configured\n");//TEST
+  /* Tentative de connexion au serveur */
+  connect(*sock, (struct sockaddr*)&sin, sizeof(sin));
+  fprintf(stderr,"Connexion a %s sur le port %d\n", inet_ntoa(sin.sin_addr), htons(sin.sin_port));
 
-       /* Configuration de la connexion */
-      sin.sin_addr.s_addr = inet_addr(adressesRobots[num]);
-      sin.sin_family = AF_INET;
-      sin.sin_port = htons(PORT);
-
-      /* Tentative de connexion au serveur */
-      connect(sock, (struct sockaddr*)&sin, sizeof(sin));
-      recv(sock, buffer, 32, 0);
-      fprintf(stderr,"Connexion a %s sur le port %d\n", inet_ntoa(sin.sin_addr),
-         htons(sin.sin_port));
-      //printf("le serveur a dit : %s \n",buffer) ;
 }
 
 
-void flush_buffer(char* x)
-{
+void flush_buffer(char* x){
   char *pos = strchr(x, '\n');
   if(pos){
     *pos = '\0';
@@ -63,93 +55,83 @@ void flush_buffer(char* x)
 
 
 int main(int argc,  char *argv[ ]) {
-   pid_t childpid;             /* indicates process should spawn another     */
-   int error;                  /* return value from dup2 call                */
-   int fd[2];                  /* file descriptors                           */
-   int i = 0 ;
-   int nprocs= 6;                 /* nombre total de process dans le ring    */
-   char** adressesRobots = (char**) malloc(6*sizeof(char*));
-   int num=0;
-   char adresse[16] = "" ;
-   long ppid;
-   char token[10];
-   int keyboard ;
-   posX = (int*) malloc (sizeof(int)) ;
-   *posX = -1 ;
-   posY = (int*) malloc (sizeof(int)) ;
-   *posY = -1 ;
+  pid_t childpid;             /* indicates process should spawn another     */
+  int error;                  /* return value from dup2 call                */
+  int fd[2];                  /* file descriptors                           */
+  int i = 0 ;
+  int nprocs= 6;                 /* nombre total de process dans le ring    */
+  char** adressesRobots = (char**) malloc(6*sizeof(char*));
+  int num=0;
+  char adresse[16] = "" ;
+  long ppid;
+  char token[10];
+  int keyboard ;
+  posX = (int*) malloc (sizeof(int)) ;
+  *posX = -1 ;
+  posY = (int*) malloc (sizeof(int)) ;
+  *posY = -1 ;
 
-   /* sauvegarder le desc de l'entrée clavier*/
-   keyboard = dup(STDIN_FILENO);
+  /* sauvegarder le desc de l'entrée clavier*/
+  keyboard = dup(STDIN_FILENO);
 
-   for (i=0;i<6;i++){
+  for (i=0;i<6;i++){
     adressesRobots[i] = (char*) malloc(16*sizeof(char)) ;
     printf("Joueur %d, Entrez l'adresse de votre Robot \n", i);
     fgets(adresse,16,stdin) ;
     adressesRobots[i] = adresse ;
-   }
-   i = 0;
-   printf("data initialized\n");//TEST
+  }
+  i = 0;
+  printf("data initialized\n");
+  if (pipe (fd) == -1) {      /* connect std input to std output via a pipe */
+    perror("Failed to create starting pipe");
+    return 1;
+  }
+  if ((dup2(fd[0], STDIN_FILENO) == -1) ||
+    (dup2(fd[1], STDOUT_FILENO) == -1)) {
+    perror("Failed to connect pipe");
+    return 1;
+  }
+  if ((close(fd[0]) == -1) || (close(fd[1]) == -1)) {
+    perror("Failed to close extra descriptors");
+    return 1;
+  }
 
-   if (pipe (fd) == -1) {      /* connect std input to std output via a pipe */
-      perror("Failed to create starting pipe");
+  for (i = 0; i < nprocs-1; i++) {        /* création des process */
+    if (pipe (fd) == -1) {
+      fprintf(stderr, "[%ld]:failed to create pipe %d: %s\n", (long)getpid(), i, strerror(errno));
       return 1;
-   }
-   if ((dup2(fd[0], STDIN_FILENO) == -1) ||
-       (dup2(fd[1], STDOUT_FILENO) == -1)) {
-      perror("Failed to connect pipe");
+    }
+    if ((childpid = fork()) == -1) {
+      fprintf(stderr, "[%ld]:failed to create child %d: %s\n", (long)getpid(), i, strerror(errno));
       return 1;
-   }
-   if ((close(fd[0]) == -1) || (close(fd[1]) == -1)) {
-      perror("Failed to close extra descriptors");
+    }
+
+    if (childpid > 0)               /* for parent process, reassign stdout */
+      error = dup2(fd[1], STDOUT_FILENO);
+    else {                              /* for child process, reassign stdin */
+      error = dup2(fd[0], STDIN_FILENO);
+      num=i+1;
+      ppid=(long)getppid();
+    }
+    if (error == -1) {
+      fprintf(stderr, "[%ld]:failed to dup pipes for iteration %d: %s\n", (long)getpid(), i, strerror(errno));
       return 1;
-   }
+    }
+    if ((close(fd[0]) == -1) || (close(fd[1]) == -1)) {
+      fprintf(stderr, "[%ld]:failed to close extra descriptors %d: %s\n", (long)getpid(), i, strerror(errno));
+      return 1;
+    }
+    if (childpid){
+      break ;
+    }
+  }
 
-   //char buffer[32] = "";
 
-   for (i = 0; i < nprocs-1; i++) {        /* création des process */
+  int sock = 0;
+  connectToRobots(adressesRobots,num,&sock);                                         
+  fprintf(stderr, "This is process %d with ID %ld and parent id %ld\n", num, (long)getpid(), ppid);
 
-
-
-      if (pipe (fd) == -1) {
-         fprintf(stderr, "[%ld]:failed to create pipe %d: %s\n",
-                (long)getpid(), i, strerror(errno));
-         return 1;
-      }
-      if ((childpid = fork()) == -1) {
-         fprintf(stderr, "[%ld]:failed to create child %d: %s\n",
-                 (long)getpid(), i, strerror(errno));
-         return 1;
-      }
-
-      if (childpid > 0)               /* for parent process, reassign stdout */
-          error = dup2(fd[1], STDOUT_FILENO);
-      else {                              /* for child process, reassign stdin */
-          error = dup2(fd[0], STDIN_FILENO);
-          num=i+1;
-          ppid=(long)getppid();
-      }
-      if (error == -1) {
-         fprintf(stderr, "[%ld]:failed to dup pipes for iteration %d: %s\n",
-                 (long)getpid(), i, strerror(errno));
-         return 1;
-      }
-      if ((close(fd[0]) == -1) || (close(fd[1]) == -1)) {
-         fprintf(stderr, "[%ld]:failed to close extra descriptors %d: %s\n",
-                (long)getpid(), i, strerror(errno));
-         return 1;
-      }
-      if (childpid){
-        break ;
-      }
-
-   }
-
-   connectToRobots(adressesRobots,num);                                         /* connecting process to robots */
-   fprintf(stderr, "This is process %d with ID %ld and parent id %ld\n",
-           num, (long)getpid(), ppid);
-
-   sleep(2) ;
+   sleep(2) ;// SERT à RIEN
 
    if(num==0){
 
@@ -195,27 +177,16 @@ int main(int argc,  char *argv[ ]) {
 		//---Envoyer les coordonnées saisies dans un fichier--
         remove("X");
         remove("Y");
-        FILE * xfile = fopen( "./X", "w");
-        FILE * yfile = fopen( "./Y", "w");
+        FILE * xfile = fopen( "./X", "w+");
+        FILE * yfile = fopen( "./Y", "w+");
         fputs(x,xfile) ;
         fputs(y,yfile) ;
+        /* envoi au serveur */
+        send(sock,x,4,0) ;
+        send(sock,y,4,0) ;
         fclose(xfile) ;
         fclose(yfile) ;
-        //purge du flux stdin
-        //fflush(stdin) ;
         flush_buffer(y);
-
-
-        /*posX = atoi(x) ;
-        posY = atoi(y) ;
-        setX(atoi(x)) ;
-        setY(atoi(y)) ;
-        free(x) ;
-        free(y) ;
-        fprintf(stderr,"Nouveau X : %d \n", posX);
-        fprintf(stderr,"Nouveau Y : %d \n", posY);*/
-
-
       }
 
       if (pidSaisie != 0) {
