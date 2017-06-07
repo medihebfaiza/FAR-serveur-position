@@ -10,11 +10,17 @@
 #include <stdbool.h>
 #include <signal.h>
 #include <time.h>
+#include <netdb.h>
 #define PORT 10000
 
 //Positions à envoyer
 int* posX ;
 int* posY ;
+
+//clef de testVB
+char* clefCanal = "1494771555601_5SGQdxJaJ8O1HBj4";
+char* ressource = "msg";
+
 
 void setX(int x) {
   *posX = x ;
@@ -40,6 +46,125 @@ void connectToRobots(char** adressesRobots, int num, int* sock){
   fprintf(stderr,"Connexion a %s sur le port %d\n", inet_ntoa(sin.sin_addr), htons(sin.sin_port));
 
 }
+
+
+void envoiBeeBotte()
+{
+  void error(const char *msg) { perror(msg); exit(0); }
+
+
+  int sendToBeBotte(char *canal, char *data[])
+  {
+    // data est un tableau de chaines (char[]), c-a-d un tableau de char a deux dimensions
+    // printf("data[0] is %s\n",data[0]);
+    //printf("data[3] is %s\n",data[3]);
+ 
+    int i;
+    char *host = "api.beebotte.com";
+    /* !! TODO remplacer 'testVB' par le canal dans lequel publier (ex: partie12)
+        (ici msg est la "ressource" que ce canal attend */
+    char path[100] = "/v1/data/write/";
+    strcat(path,canal);strcat(path,"/"); strcat(path,ressource);
+    struct hostent *server;
+    struct sockaddr_in serv_addr;
+    int sockfd, bytes, sent, received, total, message_size;
+    char *message, response[4096];
+
+    // Necessaire pour envoyer des donnees sur beebottle.com (noter le token du canal a la fin) :
+    char headers[300] ="Host: api.beebotte.com\r\nContent-Type: application/json\r\nX-Auth-Token: ";
+    strcat(headers,clefCanal);strcat(headers,"\r\n"); 
+    
+    char donnees[4096] = "{\"data\":\""; // "data" est impose par beebotte.com
+    for (i=0;i<3;i++) {
+        strcat(donnees,data[i]);strcat(donnees,",");
+    }
+    strcat(donnees,data[3]);strcat(donnees,"\"}");
+
+
+    // Norme d'envoi projet FAR
+    strcat(donnees,"type_msg=");
+    strcat(donnees,data[0]);
+    strcat(donnees,",");
+
+    strcat(donnees,"type_ent=");
+    strcat(donnees,data[1]);
+    strcat(donnees,",");
+
+    strcat(donnees,"num=");
+    strcat(donnees,data[2]);
+    strcat(donnees,",");
+
+    strcat(donnees,"data=");
+    strcat(donnees,data[3]);
+    strcat(donnees,"\"}");
+
+    /* How big is the whole HTTP message? (POST) */
+    message_size=0;
+    message_size+=strlen("%s %s HTTP/1.0\r\n")+strlen("POST")+strlen(path)+strlen(headers);
+    message_size+=strlen("Content-Length: %d\r\n")+10+strlen("\r\n")+(int)strlen(donnees); 
+    /* allocate space for the message */
+    message=malloc(message_size);
+
+    /* Construit le message POST */
+    sprintf(message,"POST %s HTTP/1.0\r\n",path); 
+    sprintf(message+strlen(message), "%s",headers);
+    sprintf(message+strlen(message),"Content-Length: %d\r\n",(int)strlen(donnees));
+    strcat(message,"\r\n");              /* blank line     */
+    strcat(message,donnees);             /* body           */
+
+    /* What are we going to send? */
+    printf("Request:\n%s\n-------------\n",message);
+
+    /* create the socket */
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) error("ERROR opening socket");
+    /* lookup the ip address */
+    server = gethostbyname(host);
+    if (server == NULL) error("ERROR, no such host");
+    /* fill in the structure */
+    memset(&serv_addr,0,sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(80); // port 80
+    memcpy(&serv_addr.sin_addr.s_addr,server->h_addr,server->h_length);
+    /* connect the socket */
+    if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0)
+        error("ERROR connecting");
+    /* send the request */
+    total = strlen(message);
+    sent = 0;
+    do {
+        bytes = write(sockfd,message+sent,total-sent);
+        if (bytes < 0)
+            error("ERROR writing message to socket");
+        if (bytes == 0)
+            break;
+        sent+=bytes;
+    } while (sent < total);
+
+    /* receive the response */
+    memset(response,0,sizeof(response));
+    total = sizeof(response)-1;
+    received = 0;
+    do {
+        bytes = read(sockfd,response+received,total-received);
+        if (bytes < 0) error("ERROR reading response from socket");
+        if (bytes == 0)
+            break;
+        received+=bytes;
+    } while (received < total);
+
+    if (received == total) error("ERROR storing complete response from socket");
+    /* close the socket */
+    close(sockfd); 
+
+    /* process response */
+    printf("Response:\n%s\n",response);
+
+    free(message);
+    return 0;
+  }
+}
+
 
 
 void flush_buffer(char* x){
@@ -162,11 +287,9 @@ int main(int argc,  char *argv[ ]) {
         fprintf(stderr,"X = ");
 
         fgets(x,10*sizeof(char),stdin) ;
-
         //purge du flux stdin
         //fflush(stdin) ;
         flush_buffer(x);
-
 
 
         fprintf(stderr,"Y = ") ;
@@ -175,15 +298,28 @@ int main(int argc,  char *argv[ ]) {
 
 
 		//---Envoyer les coordonnées saisies dans un fichier--
-        remove("X");
-        remove("Y");
-        FILE * xfile = fopen( "./X", "w+");
-        FILE * yfile = fopen( "./Y", "w+");
-        fputs(x,xfile) ;
-        fputs(y,yfile) ;
+        FILE * xfile = fopen( "X", "w+");
+        FILE * yfile = fopen( "Y", "w+");
+        system("chmod +777 X");
+        system("chmod +777 Y");
+        fputs(x,xfile);
+        fputs(y,yfile);
+
+        //fputs(x,xfile) ;
+        //fputs(y,yfile) ;
         /* envoi au serveur */
         send(sock,x,4,0) ;
         send(sock,y,4,0) ;
+
+        char* canalBeebotteCoord = "testVB";
+
+
+        char* data = malloc(256*sizeof(char));
+        sprintf(data,"%s,%s,%s",x,y,adressesRobots[num]);
+        char* mess [4] = {"COORD","SP","1",data};
+
+        envoiBeeBotte(mess,canalBeebotteCoord);
+
         fclose(xfile) ;
         fclose(yfile) ;
         flush_buffer(y);
@@ -195,8 +331,8 @@ int main(int argc,  char *argv[ ]) {
         char bufferx[10] = "" ;
         char buffery[10] = "" ;
         while ((strlen(bufferx) == 0 || strlen(buffery) == 0) && time(0) < retTime){ //tant que le buffer est vide (le fichier est vide) et que le temps n'est pas écoulé
-          FILE * xfile = fopen( "./X", "r");
-          FILE * yfile = fopen( "./Y", "r");
+          FILE * xfile = fopen( "X", "r");
+          FILE * yfile = fopen( "Y", "r");
           if (xfile && yfile) {
             fgets(bufferx,10,xfile) ;
             fgets(buffery,10,yfile) ;
