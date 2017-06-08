@@ -34,7 +34,7 @@ int main(void) {
   bind(sock, (struct sockaddr*)&sin, recsize);
 
   /* Demarrage du listage (mode server) */
-  listen(sock, 5);
+  listen(sock, 1);
 
   int X = -1 ;
   int Y = -1 ;
@@ -49,10 +49,10 @@ int main(void) {
   while( 1 ){ //on recoit plusieurs messages
       recv(csock, sX, 4, 0) ;
       X = atoi(sX);
-      //printf("J'ai recu sX = %s, apres convertion X = %d \n", sX, X);
+      printf("J'ai recu sX = %s, apres convertion X = %d \n", sX, X);
       recv(csock, sY, 4, 0) ;
       Y = atoi(sY);
-    //  printf("J'ai recu sY = %s, apres convertion Y = %d \n", sY, Y);
+      printf("J'ai recu sY = %s, apres convertion Y = %d \n", sY, Y);
   }
 
   /* Fermeture de la socket client et de la socket serveur */

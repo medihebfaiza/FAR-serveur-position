@@ -47,14 +47,14 @@ void connectToRobots(char** adressesRobots, int num, int* sock){
 
 }
 
-
-void envoiBeeBotte()
+void error(const char *msg)
 {
-  void error(const char *msg) { perror(msg); exit(0); }
+  fprintf(stderr, "%s", msg);
+  exit(0);
+}
 
-
-  int sendToBeBotte(char *canal, char *data[])
-  {
+int envoiBeeBotte(char* data[], char *canal)
+{
     // data est un tableau de chaines (char[]), c-a-d un tableau de char a deux dimensions
     // printf("data[0] is %s\n",data[0]);
     //printf("data[3] is %s\n",data[3]);
@@ -113,14 +113,22 @@ void envoiBeeBotte()
     strcat(message,donnees);             /* body           */
 
     /* What are we going to send? */
-    printf("Request:\n%s\n-------------\n",message);
+  //  printf("Request:\n%s\n-------------\n",message);
 
     /* create the socket */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) error("ERROR opening socket");
+    if (sockfd < 0)
+    {
+      error("ERROR opening socket");
+    }
+
     /* lookup the ip address */
     server = gethostbyname(host);
-    if (server == NULL) error("ERROR, no such host");
+    if (server == NULL)
+    {
+      error("ERROR, no such host");
+    }
+
     /* fill in the structure */
     memset(&serv_addr,0,sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
@@ -128,7 +136,9 @@ void envoiBeeBotte()
     memcpy(&serv_addr.sin_addr.s_addr,server->h_addr,server->h_length);
     /* connect the socket */
     if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0)
-        error("ERROR connecting");
+    {
+      error("ERROR connecting");
+    }
     /* send the request */
     total = strlen(message);
     sent = 0;
@@ -162,7 +172,6 @@ void envoiBeeBotte()
 
     free(message);
     return 0;
-  }
 }
 
 
@@ -202,6 +211,7 @@ int main(int argc,  char *argv[ ]) {
     adressesRobots[i] = (char*) malloc(16*sizeof(char)) ;
     printf("Joueur %d, Entrez l'adresse de votre Robot \n", i);
     fgets(adressesRobots[i],16*sizeof(char),stdin) ;
+    flush_buffer(adressesRobots[i]);
   }
 
   for(int j=0;j<6;j++)
@@ -314,14 +324,15 @@ int main(int argc,  char *argv[ ]) {
         send(sock,x,4,0) ;
         send(sock,y,4,0) ;
 
-        char* canalBeebotteCoord = "testVB";
+      //  char* canalBeebotteCoord = "testVB";
 
 
         char* data = malloc(256*sizeof(char));
-        sprintf(data,"%s,%s,%s",x,y,adressesRobots[num]);
-        char* mess [4] = {"COORD","SP","1",data};
+        sprintf(data,"%s+%s+%s",adressesRobots[num],x,y);
+        fprintf(stderr,"%s\n", data);
+        char* mess [4] = {"COORD","SP","2",data};
 
-        envoiBeeBotte(mess,canalBeebotteCoord);
+        envoiBeeBotte(mess,"testVB");
 
         fclose(xfile) ;
         fclose(yfile) ;
