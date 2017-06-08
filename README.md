@@ -31,7 +31,7 @@ BeeBotte (format IPRobot+coordonnéeX+coordonnéeY).
 make && make clean
 ~~~
 
-### Exécuter :
+### Executer :
 Sur le robot :
 ~~~
 ./serveur
