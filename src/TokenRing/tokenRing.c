@@ -58,7 +58,7 @@ void envoiBeeBotte()
     // data est un tableau de chaines (char[]), c-a-d un tableau de char a deux dimensions
     // printf("data[0] is %s\n",data[0]);
     //printf("data[3] is %s\n",data[3]);
- 
+
     int i;
     char *host = "api.beebotte.com";
     /* !! TODO remplacer 'testVB' par le canal dans lequel publier (ex: partie12)
@@ -72,8 +72,8 @@ void envoiBeeBotte()
 
     // Necessaire pour envoyer des donnees sur beebottle.com (noter le token du canal a la fin) :
     char headers[300] ="Host: api.beebotte.com\r\nContent-Type: application/json\r\nX-Auth-Token: ";
-    strcat(headers,clefCanal);strcat(headers,"\r\n"); 
-    
+    strcat(headers,clefCanal);strcat(headers,"\r\n");
+
     char donnees[4096] = "{\"data\":\""; // "data" est impose par beebotte.com
     for (i=0;i<3;i++) {
         strcat(donnees,data[i]);strcat(donnees,",");
@@ -101,12 +101,12 @@ void envoiBeeBotte()
     /* How big is the whole HTTP message? (POST) */
     message_size=0;
     message_size+=strlen("%s %s HTTP/1.0\r\n")+strlen("POST")+strlen(path)+strlen(headers);
-    message_size+=strlen("Content-Length: %d\r\n")+10+strlen("\r\n")+(int)strlen(donnees); 
+    message_size+=strlen("Content-Length: %d\r\n")+10+strlen("\r\n")+(int)strlen(donnees);
     /* allocate space for the message */
     message=malloc(message_size);
 
     /* Construit le message POST */
-    sprintf(message,"POST %s HTTP/1.0\r\n",path); 
+    sprintf(message,"POST %s HTTP/1.0\r\n",path);
     sprintf(message+strlen(message), "%s",headers);
     sprintf(message+strlen(message),"Content-Length: %d\r\n",(int)strlen(donnees));
     strcat(message,"\r\n");              /* blank line     */
@@ -155,7 +155,7 @@ void envoiBeeBotte()
 
     if (received == total) error("ERROR storing complete response from socket");
     /* close the socket */
-    close(sockfd); 
+    close(sockfd);
 
     /* process response */
     printf("Response:\n%s\n",response);
@@ -187,7 +187,6 @@ int main(int argc,  char *argv[ ]) {
   int nprocs= 6;                 /* nombre total de process dans le ring    */
   char** adressesRobots = (char**) malloc(6*sizeof(char*));
   int num=0;
-  char adresse[16] = "" ;
   long ppid;
   char token[10];
   int keyboard ;
@@ -202,8 +201,12 @@ int main(int argc,  char *argv[ ]) {
   for (i=0;i<6;i++){
     adressesRobots[i] = (char*) malloc(16*sizeof(char)) ;
     printf("Joueur %d, Entrez l'adresse de votre Robot \n", i);
-    fgets(adresse,16,stdin) ;
-    adressesRobots[i] = adresse ;
+    fgets(adressesRobots[i],16*sizeof(char),stdin) ;
+  }
+
+  for(int j=0;j<6;j++)
+  {
+    fprintf(stderr, "%s\n", adressesRobots[j]);
   }
   i = 0;
   printf("data initialized\n");
@@ -253,7 +256,7 @@ int main(int argc,  char *argv[ ]) {
 
 
   int sock = 0;
-  connectToRobots(adressesRobots,num,&sock);                                         
+  connectToRobots(adressesRobots,num,&sock);
   fprintf(stderr, "This is process %d with ID %ld and parent id %ld\n", num, (long)getpid(), ppid);
 
    sleep(2) ;// SERT à RIEN
