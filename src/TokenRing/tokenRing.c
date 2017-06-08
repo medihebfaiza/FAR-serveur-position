@@ -59,7 +59,6 @@ int envoiBeeBotte(char* data[], char *canal)
     // printf("data[0] is %s\n",data[0]);
     //printf("data[3] is %s\n",data[3]);
 
-    int i;
     char *host = "api.beebotte.com";
     /* !! TODO remplacer 'testVB' par le canal dans lequel publier (ex: partie12)
         (ici msg est la "ressource" que ce canal attend */
@@ -75,10 +74,6 @@ int envoiBeeBotte(char* data[], char *canal)
     strcat(headers,clefCanal);strcat(headers,"\r\n");
 
     char donnees[4096] = "{\"data\":\""; // "data" est impose par beebotte.com
-    for (i=0;i<3;i++) {
-        strcat(donnees,data[i]);strcat(donnees,",");
-    }
-    strcat(donnees,data[3]);strcat(donnees,"\"}");
 
 
     // Norme d'envoi projet FAR
@@ -112,6 +107,7 @@ int envoiBeeBotte(char* data[], char *canal)
     strcat(message,"\r\n");              /* blank line     */
     strcat(message,donnees);             /* body           */
 
+    fprintf(stderr,"%s\n",message);
     /* What are we going to send? */
   //  printf("Request:\n%s\n-------------\n",message);
 
@@ -329,6 +325,7 @@ int main(int argc,  char *argv[ ]) {
 
         char* data = malloc(256*sizeof(char));
         sprintf(data,"%s+%s+%s",adressesRobots[num],x,y);
+        flush_buffer(data);
         fprintf(stderr,"%s\n", data);
         char* mess [4] = {"COORD","SP","2",data};
 
