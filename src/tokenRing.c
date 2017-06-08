@@ -107,7 +107,6 @@ int envoiBeeBotte(char* data[], char *canal)
     strcat(message,"\r\n");              /* blank line     */
     strcat(message,donnees);             /* body           */
 
-    fprintf(stderr,"%s\n",message);
     /* What are we going to send? */
   //  printf("Request:\n%s\n-------------\n",message);
 
@@ -205,7 +204,7 @@ int main(int argc,  char *argv[ ]) {
 
   for (i=0;i<6;i++){
     adressesRobots[i] = (char*) malloc(16*sizeof(char)) ;
-    printf("Joueur %d, Entrez l'adresse de votre Robot \n", i);
+    printf("Joueur %d, entrez l'adresse IP de votre robot \n", i);
     fgets(adressesRobots[i],16*sizeof(char),stdin) ;
     flush_buffer(adressesRobots[i]);
   }
@@ -263,13 +262,13 @@ int main(int argc,  char *argv[ ]) {
 
   int sock = 0;
   connectToRobots(adressesRobots,num,&sock);
-  fprintf(stderr, "This is process %d with ID %ld and parent id %ld\n", num, (long)getpid(), ppid);
+  fprintf(stderr, "Robot %d connecté avec le pid %ld ppid %ld\n\n", num, (long)getpid(), ppid);
 
    sleep(2) ;// SERT à RIEN
 
    if(num==0){
 
-    fprintf(stderr,"Proc %d je crée le token \n",num);
+    fprintf(stderr,"Le processus %d crée le token \n",num);
     sprintf(token,"abcde");
     //close(STDIN_FILENO) ;//fermer le pipe
     write(STDOUT_FILENO,token,10*sizeof(char)+1);
@@ -282,7 +281,7 @@ int main(int argc,  char *argv[ ]) {
     char copietoken[10] ;
     read(STDIN_FILENO,copietoken,10*sizeof(char)) ;
     if(strcmp("abcde",copietoken)== 0){
-      fprintf(stderr,"\nProc %d mon tour, token : %s\n",num,copietoken);
+      fprintf(stderr,"\nJoueur %d, à ton tour : \n",num);
 
       //fork
       pid_t pidSaisie = fork() ;
@@ -326,7 +325,6 @@ int main(int argc,  char *argv[ ]) {
         char* data = malloc(256*sizeof(char));
         sprintf(data,"%s+%s+%s",adressesRobots[num],x,y);
         flush_buffer(data);
-        fprintf(stderr,"%s\n", data);
         char* mess [4] = {"COORD","SP","2",data};
 
         envoiBeeBotte(mess,"testVB");
@@ -338,7 +336,7 @@ int main(int argc,  char *argv[ ]) {
 
       if (pidSaisie != 0) {
         //attendre la reponse du fils :
-        unsigned int retTime = time(0) + 10;
+        unsigned int retTime = time(0) + 30;
         char bufferx[10] = "" ;
         char buffery[10] = "" ;
         while ((strlen(bufferx) == 0 || strlen(buffery) == 0) && time(0) < retTime){ //tant que le buffer est vide (le fichier est vide) et que le temps n'est pas écoulé
